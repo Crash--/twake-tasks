@@ -8,6 +8,7 @@
 #   scripts/qa-environment/build.sh    # once, and whenever the code under test changes
 #   scripts/qa-environment/start.sh
 #   QA_USERS="carol dave" scripts/qa-environment/start.sh   # other extra accounts
+#   QA_PERF_USERS=100 scripts/qa-environment/start.sh        # perf0001..perf0100, for load tests
 #
 # Accounts, signed in by a button of the mock SSO, no password:
 #   alice (administrator of the organization acme.e2e.test), bob, and QA_USERS, by default
@@ -122,17 +123,25 @@ fi
 echo "==> Seeding the TwakeSpace spaces"
 create_space 5ace0000-0000-4000-8000-000000000001 "Product launch" alice:admin bob:editor carol:viewer
 create_space 5ace0000-0000-4000-8000-000000000002 "Support" bob:admin dave:editor alice:viewer
+if [ "$QA_PERF_USERS" -gt 0 ]; then
+  perf_members=()
+  for ((i = 1; i <= QA_PERF_USERS; i++)); do perf_members+=("$(printf 'perf%04d' "$i"):editor"); done
+  create_space 5ace0000-0000-4000-8000-000000000003 "Performance" alice:admin "${perf_members[@]}"
+fi
 launch="$(project_of_space 5ace0000-0000-4000-8000-000000000001)"
 support="$(project_of_space 5ace0000-0000-4000-8000-000000000002)"
-cat >"$GENERATED_DIR/space.json" <<JSON
-[
-  {"name": "Product launch", "projectId": "$launch"},
-  {"name": "Support", "projectId": "$support"}
-]
-JSON
+spaces="  {\"name\": \"Product launch\", \"projectId\": \"$launch\"},
+  {\"name\": \"Support\", \"projectId\": \"$support\"}"
+if [ "$QA_PERF_USERS" -gt 0 ]; then
+  performance="$(project_of_space 5ace0000-0000-4000-8000-000000000003)"
+  spaces="$spaces,
+  {\"name\": \"Performance\", \"projectId\": \"$performance\"}"
+fi
+printf '[\n%s\n]\n' "$spaces" >"$GENERATED_DIR/space.json"
 
 accounts=""
 for entry in alice bob $QA_USERS; do
+  case "$entry" in perf[0-9][0-9][0-9][0-9]) continue ;; esac  # QA_PERF_USERS: summed up below
   uid="${entry%%@*}"
   case "$entry" in
     *@) org="no organization, B2C" ;;
@@ -142,6 +151,11 @@ for entry in alice bob $QA_USERS; do
   accounts="$accounts    $uid ($org)
 "
 done
+
+if [ "$QA_PERF_USERS" -gt 0 ]; then
+  accounts="$accounts    perf0001 .. $(printf 'perf%04d' "$QA_PERF_USERS") ($ORG, editors of the space \"Performance\", project $performance)
+"
+fi
 
 cat <<INFO
 
@@ -153,7 +167,7 @@ cat <<INFO
 
 Accounts:
 $accounts
-Spaces: "Product launch" (project $launch), "Support" (project $support)
+Spaces: "Product launch" (project $launch), "Support" (project $support)${performance:+, "Performance" (project $performance)}
 
 From a container (e.g. Playwright), join the network '${QA_PROJECT}_default' and use:
   --host-resolver-rules="MAP localhost:$QA_APP_PORT frontend:8080,MAP localhost:$QA_SPACE_PORT twakespace:8080"
