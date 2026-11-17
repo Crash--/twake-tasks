@@ -49,7 +49,9 @@ async function openBlockers(tx: Tx, ids: string[]) {
     const blocker = row.open
       ? { key: `${row.keyPrefix}-${String(row.number)}`, title: row.title }
       : null
-    byTask.set(row.taskId, [...(byTask.get(row.taskId) ?? []), blocker])
+    const ofTask = byTask.get(row.taskId)
+    if (ofTask) ofTask.push(blocker)
+    else byTask.set(row.taskId, [blocker])
   }
   return byTask
 }
@@ -104,13 +106,15 @@ export async function describeTasksOf(tx: Tx, rows: TaskOnBoard[]) {
           .from(taskTemplates)
           .where(inArray(taskTemplates.id, templateIds))
   const templatesById = new Map(templates.map(t => [t.id, t]))
-  const assigned = new Set(assignments.map(a => `${a.taskId}:${a.userId}`))
-  const labeledWith = new Set(labeled.map(l => `${l.taskId}:${l.labelId}`))
+  const assigned = Map.groupBy(assignments, a => a.taskId)
+  const labeledWith = Map.groupBy(labeled, l => l.taskId)
   const commentCounts = new Map(commented.map(c => [c.taskId, c.count]))
   const blockers = await openBlockers(tx, ids)
   return rows.map(({ task, board, members, labels }) => {
     const template =
       task.templateId === null ? undefined : templatesById.get(task.templateId)
+    const assigneeIds = new Set(assigned.get(task.id)?.map(a => a.userId))
+    const labelIds = new Set(labeledWith.get(task.id)?.map(l => l.labelId))
     return {
       id: task.id,
       key: `${board.keyPrefix}-${String(task.number)}`,
@@ -134,10 +138,8 @@ export async function describeTasksOf(tx: Tx, rows: TaskOnBoard[]) {
       completedAt: task.completedAt,
       canceledAt: task.canceledAt,
       // Someone who left the board stays assigned, but is not shown.
-      assignees: members.filter(member =>
-        assigned.has(`${task.id}:${member.userId}`)
-      ),
-      labels: labels.filter(label => labeledWith.has(`${task.id}:${label.id}`)),
+      assignees: members.filter(member => assigneeIds.has(member.userId)),
+      labels: labels.filter(label => labelIds.has(label.id)),
       commentCount: commentCounts.get(task.id) ?? 0,
       blockers: blockers.get(task.id) ?? []
     }
