@@ -21,10 +21,10 @@ import {
   accessibleBoards,
   boards,
   comments,
-  describeTasks,
-  labelsOn,
+  describeTasksOf,
+  labelsOnProjects,
   looksOn,
-  membersOf,
+  membersOfProjects,
   projects,
   sections,
   shift,
@@ -381,23 +381,21 @@ export async function tasksOf(
       asc(tasks.number)
     )
   const rows = await (limit === undefined ? query : query.limit(limit))
-  const described = new Map<string, Awaited<ReturnType<typeof describeTasks>>>()
-  for (const board of new Map(
-    rows.map(row => [row.board.id, row.board])
-  ).values()) {
-    described.set(
-      board.id,
-      await describeTasks(
-        tx,
-        board,
-        rows.filter(row => row.board.id === board.id).map(row => row.task),
-        await membersOf(tx, board),
-        await labelsOn(tx, board)
-      )
-    )
-  }
-  return rows.map(({ task, board, category, parentTitle }) => ({
-    ...described.get(board.id)?.find(each => each.id === task.id),
+  if (rows.length === 0) return []
+  const projectIds = [...new Set(rows.map(row => row.board.projectId))]
+  const members = await membersOfProjects(tx, projectIds)
+  const labels = await labelsOnProjects(tx, projectIds)
+  const described = await describeTasksOf(
+    tx,
+    rows.map(({ task, board }) => ({
+      task,
+      board,
+      members: members.get(board.projectId) ?? [],
+      labels: labels.get(board.projectId) ?? []
+    }))
+  )
+  return rows.map(({ board, category, parentTitle }, index) => ({
+    ...described[index],
     category,
     parentTitle,
     boardId: board.id,

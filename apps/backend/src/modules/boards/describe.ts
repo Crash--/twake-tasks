@@ -54,14 +54,29 @@ async function openBlockers(tx: Tx, ids: string[]) {
   return byTask
 }
 
-export async function describeTasks(
+interface TaskOnBoard {
+  task: typeof tasks.$inferSelect
+  board: typeof boards.$inferSelect
+  members: Member[]
+  labels: { id: string; name: string; color: string | null }[]
+}
+
+export function describeTasks(
   tx: Tx,
   board: typeof boards.$inferSelect,
   rows: (typeof tasks.$inferSelect)[],
   members: Member[],
-  boardLabels: { id: string; name: string; color: string | null }[]
+  boardLabels: TaskOnBoard['labels']
 ) {
-  const ids = rows.map(task => task.id)
+  return describeTasksOf(
+    tx,
+    rows.map(task => ({ task, board, members, labels: boardLabels }))
+  )
+}
+
+// Tasks of many boards in as many statements as the tasks of one.
+export async function describeTasksOf(tx: Tx, rows: TaskOnBoard[]) {
+  const ids = rows.map(({ task }) => task.id)
   if (ids.length === 0) return []
   const assignments = await tx
     .select({ taskId: taskAssignees.taskId, userId: taskAssignees.userId })
@@ -76,54 +91,55 @@ export async function describeTasks(
     .from(comments)
     .where(inArray(comments.taskId, ids))
     .groupBy(comments.taskId)
-  const templateIds = rows.flatMap(task => task.templateId ?? [])
+  const templateIds = rows.flatMap(({ task }) => task.templateId ?? [])
   const templates =
     templateIds.length === 0
       ? []
       : await tx
-          .select({ id: taskTemplates.id, title: taskTemplates.title })
+          .select({
+            id: taskTemplates.id,
+            title: taskTemplates.title,
+            projectId: taskTemplates.projectId
+          })
           .from(taskTemplates)
-          .where(
-            and(
-              inArray(taskTemplates.id, templateIds),
-              eq(taskTemplates.projectId, board.projectId)
-            )
-          )
+          .where(inArray(taskTemplates.id, templateIds))
   const templatesById = new Map(templates.map(t => [t.id, t]))
   const assigned = new Set(assignments.map(a => `${a.taskId}:${a.userId}`))
   const labeledWith = new Set(labeled.map(l => `${l.taskId}:${l.labelId}`))
   const commentCounts = new Map(commented.map(c => [c.taskId, c.count]))
   const blockers = await openBlockers(tx, ids)
-  return rows.map(task => ({
-    id: task.id,
-    key: `${board.keyPrefix}-${String(task.number)}`,
-    sectionId: task.sectionId,
-    parentId: task.parentId,
-    title: task.title,
-    priority: task.priority,
-    dueDate: task.dueDate,
-    dueTime: task.dueTime?.slice(0, 5) ?? null,
-    dueZone: task.dueZone,
-    deadline: task.deadline,
-    duration:
-      task.duration && task.durationUnit
-        ? { amount: task.duration, unit: task.durationUnit }
-        : null,
-    recurrence: recurrenceOf(task),
-    template:
-      task.templateId === null
-        ? null
-        : (templatesById.get(task.templateId) ?? null),
-    completedAt: task.completedAt,
-    canceledAt: task.canceledAt,
-    // Someone who left the board stays assigned, but is not shown.
-    assignees: members.filter(member =>
-      assigned.has(`${task.id}:${member.userId}`)
-    ),
-    labels: boardLabels.filter(label =>
-      labeledWith.has(`${task.id}:${label.id}`)
-    ),
-    commentCount: commentCounts.get(task.id) ?? 0,
-    blockers: blockers.get(task.id) ?? []
-  }))
+  return rows.map(({ task, board, members, labels }) => {
+    const template =
+      task.templateId === null ? undefined : templatesById.get(task.templateId)
+    return {
+      id: task.id,
+      key: `${board.keyPrefix}-${String(task.number)}`,
+      sectionId: task.sectionId,
+      parentId: task.parentId,
+      title: task.title,
+      priority: task.priority,
+      dueDate: task.dueDate,
+      dueTime: task.dueTime?.slice(0, 5) ?? null,
+      dueZone: task.dueZone,
+      deadline: task.deadline,
+      duration:
+        task.duration && task.durationUnit
+          ? { amount: task.duration, unit: task.durationUnit }
+          : null,
+      recurrence: recurrenceOf(task),
+      template:
+        template?.projectId === board.projectId
+          ? { id: template.id, title: template.title }
+          : null,
+      completedAt: task.completedAt,
+      canceledAt: task.canceledAt,
+      // Someone who left the board stays assigned, but is not shown.
+      assignees: members.filter(member =>
+        assigned.has(`${task.id}:${member.userId}`)
+      ),
+      labels: labels.filter(label => labeledWith.has(`${task.id}:${label.id}`)),
+      commentCount: commentCounts.get(task.id) ?? 0,
+      blockers: blockers.get(task.id) ?? []
+    }
+  })
 }
