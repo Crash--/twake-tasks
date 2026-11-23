@@ -5,7 +5,7 @@ set -eu
 
 ME=$(basename "$0")
 OUT=/tmp/nginx
-RUNTIME_KEYS="SSO_BASE_URL SSO_CLIENT_ID SSO_SCOPE SSO_REDIRECT_URI SSO_POST_LOGOUT_REDIRECT SENTRY_DSN SENTRY_ENVIRONMENT SENTRY_FEEDBACK_ENABLED DRIVE_PICKER_ENABLED SEARCH_MIN_LENGTH"
+RUNTIME_KEYS="SSO_BASE_URL SSO_CLIENT_ID SSO_SCOPE SSO_REDIRECT_URI SSO_POST_LOGOUT_REDIRECT SENTRY_DSN SENTRY_ENVIRONMENT SENTRY_FEEDBACK_ENABLED DRIVE_PICKER_ENABLED SEARCH_MIN_LENGTH TWAKE_RAIL"
 
 fail() {
   echo "$ME: error: $*" >&2
@@ -94,6 +94,13 @@ EOF
 }
 headers "'none'" >"$OUT/security-headers.conf"
 headers "$frame_ancestors" >"$OUT/embed-headers.conf"
+
+# Chrome prerenders a page of another app only if its HTML opts in.
+if [ "${TWAKE_RAIL:-}" = "true" ]; then
+  echo 'add_header Supports-Loading-Mode "credentialed-prerender" always;' >"$OUT/document-headers.conf"
+else
+  : >"$OUT/document-headers.conf"
+fi
 
 # Without an upstream, /api answers 404 rather than the SPA fallback. The upstream is a
 # variable so nginx resolves it per request: the backend may start after the frontend.
