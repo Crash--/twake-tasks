@@ -162,6 +162,10 @@ Search:
 
 - `SEARCH_MIN_LENGTH` (`2`): the fewest characters the search screen searches for. Give it the backend's `SEARCH_MIN_LENGTH`.
 
+Navigation rail:
+
+- `TWAKE_RAIL=true` shows a vertical rail of the Twake apps at the left of wide screens (md and up), once the SSO names the platform. The platform top bar then keeps its search and leaves its menus to the rail. The page answers `Supports-Loading-Mode: credentialed-prerender`, so that Chrome may prerender it from another app. Off by default.
+
 Error reporting: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_FEEDBACK_ENABLED`. See [error reporting](error-reporting.md).
 
 Twake Drive:

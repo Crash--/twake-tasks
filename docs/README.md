@@ -25,6 +25,8 @@ Start with [features](features.md) for what the app does, and [architecture](arc
 
 ## Design decisions
 
+- [Decisions](decisions.md): the choices taken on Tasks, oldest first.
+
 - [ADR 009](https://github.com/linagora/twake-space-architecture/blob/3ed41a5067c6b22f307f01e2e0dbfc56d1aa11d9/ADR009.md): Twake Tasks, the app's design.
 - [ADR 010](https://github.com/linagora/twake-space-architecture/blob/bbcb1ffe03e5452c99325662f247dadba8fecb7c/ADR010.md): embedding apps in TwakeSpace.
 - [ADR 011](https://github.com/linagora/twake-space-architecture/blob/e7f0311227c4e6c3222e81fe77b1e69e869156bf/ADR011.md): user feedback with Sentry.
