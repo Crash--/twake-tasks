@@ -61,8 +61,10 @@ export function AppFrame({
   menu,
   fab,
   skipLabel,
+  rail,
   children
 }: {
+  rail?: ReactNode
   topBar: ReactNode
   sidebar: ReactNode
   menu: MenuControl
@@ -74,12 +76,14 @@ export function AppFrame({
   const [crumbHost, setCrumbHost] = useState<HTMLElement | null>(null)
   const [scrollHost, setScrollHost] = useState<HTMLElement | null>(null)
   const narrow = useNarrowScreen()
-  return (
+  const page = (
     <CrumbHostContext value={crumbHost}>
       <PanelHostContext value={panelHost}>
         <Box
           sx={{
-            height: '100dvh',
+            height: rail ? '100%' : '100dvh',
+            minWidth: 0,
+            flex: '1 1 auto',
             display: 'flex',
             flexDirection: 'column',
             ...(narrow && { [FAB_ROOM]: '88px' })
@@ -140,6 +144,13 @@ export function AppFrame({
         </Box>
       </PanelHostContext>
     </CrumbHostContext>
+  )
+  if (!rail) return page
+  return (
+    <Box sx={{ height: '100dvh', display: 'flex' }}>
+      {rail}
+      {page}
+    </Box>
   )
 }
 

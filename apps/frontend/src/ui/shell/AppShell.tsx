@@ -29,7 +29,8 @@ import {
   NavText,
   Popover,
   Tooltip,
-  Typography
+  Typography,
+  useBreakpoints
 } from '@linagora/twake-mui'
 import {
   useRef,
@@ -72,7 +73,7 @@ import { useBoards } from '@/ui/queries/boards'
 import { useFilters } from '@/ui/queries/filters'
 import { useUnreadNotifications } from '@/ui/queries/notifications'
 import { AppFeedback } from '@/ui/shell/AppFeedback'
-import { PlatformBar } from '@/ui/shell/PlatformBar'
+import { PlatformBar, PlatformRail, railEnabled } from '@/ui/shell/PlatformBar'
 import { NewTaskFromUrl } from '@/ui/shell/NewTaskDialog'
 import { NewTaskHighlightProvider } from '@/ui/shell/NewTaskHighlight'
 import { SidebarLink } from '@/ui/shell/SidebarLink'
@@ -98,6 +99,9 @@ export function AppShell(): ReactElement {
   const search = useRef<HTMLInputElement>(null)
   const { t } = useI18n()
   const lit = useLitEntry()
+  const { sdk } = useSession()
+  const { isMobile } = useBreakpoints()
+  const rail = sdk && railEnabled() && !isMobile ? sdk : null
   // The phone menu is open on the page it was opened on: the next one, or
   // the same one followed again, closes it. Forgotten on leaving, so that Back
   // to that page does not open it again.
@@ -115,7 +119,8 @@ export function AppShell(): ReactElement {
 
   return (
     <AppFrame
-      topBar={<Header searchRef={search} onHelp={showHelp} />}
+      rail={rail && <PlatformRail sdk={rail} />}
+      topBar={<Header searchRef={search} onHelp={showHelp} withMenus={!rail} />}
       fab={
         <PhoneFab label={t('newTask.open')} onClick={startNewTask}>
           <Icon icon={Plus} size={20} />
@@ -163,10 +168,12 @@ export function AppShell(): ReactElement {
 
 function Header({
   searchRef,
-  onHelp
+  onHelp,
+  withMenus
 }: {
   searchRef: RefObject<HTMLInputElement | null>
   onHelp: () => void
+  withMenus: boolean
 }): ReactElement {
   const { t } = useI18n()
   const { sdk } = useSession()
@@ -186,6 +193,7 @@ function Header({
       <PlatformBar
         sdk={sdk}
         slots={{ search: <div className="u-mh-2">{search}</div> }}
+        withMenus={withMenus}
       />
     )
   }

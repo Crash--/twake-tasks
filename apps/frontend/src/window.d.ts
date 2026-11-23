@@ -14,6 +14,8 @@ declare global {
     SENTRY_FEEDBACK_ENABLED?: string
     /** "true" offers the Twake Drive picker in the rich text toolbar. */
     DRIVE_PICKER_ENABLED?: string
+    /** "true" shows the navigation rail of the Twake apps on wide screens. */
+    TWAKE_RAIL?: string
     /** The backend's SEARCH_MIN_LENGTH. */
     SEARCH_MIN_LENGTH?: string
   }

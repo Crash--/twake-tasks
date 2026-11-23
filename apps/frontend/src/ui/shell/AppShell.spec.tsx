@@ -1,4 +1,4 @@
-import type { TwakeBarProps } from '@linagora/twake-bar'
+import type { TwakeBarProps, TwakeRailProps } from '@linagora/twake-bar'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,8 +14,19 @@ vi.mock('@linagora/twake-sdk', () => ({ createSdk }))
 // The bar is tested in its own package: only its wiring matters here
 vi.mock('@linagora/twake-bar', () => ({
   SdkProvider: ({ children }: { children: ReactNode }): ReactNode => children,
-  TwakeBar: ({ app, slots, onLogOut }: TwakeBarProps): ReactElement => (
-    <header role="banner">
+  TWAKE_RAIL_APPS: ['space', 'drive', 'chat', 'mail', 'calendar', 'tasks'],
+  TwakeRail: ({ current, apps }: TwakeRailProps): ReactElement => (
+    <nav aria-label="Twake apps" data-current={current}>
+      {apps?.join(',')}
+    </nav>
+  ),
+  TwakeBar: ({
+    app,
+    slots,
+    onLogOut,
+    withMenus = true
+  }: TwakeBarProps): ReactElement => (
+    <header role="banner" data-menus={String(withMenus)}>
       {app.name}
       {slots?.search}
       {slots?.right}
@@ -27,6 +38,62 @@ vi.mock('@linagora/twake-bar', () => ({
 describe('AppShell', () => {
   beforeEach(() => {
     createSdk.mockClear()
+  })
+
+  afterEach(() => {
+    delete window.TWAKE_RAIL
+    vi.unstubAllGlobals()
+  })
+
+  describe('navigation rail', () => {
+    const signedIn = () =>
+      fakeSession(() => Promise.resolve(fakeUser('id-token')))
+
+    it('is not there unless the deployment turns it on', async () => {
+      renderRoute('/', { session: signedIn(), boardsApi: fakeBoardsApi() })
+
+      const bar = await screen.findByRole('banner')
+      expect(screen.queryByRole('navigation', { name: 'Twake apps' })).toBe(
+        null
+      )
+      expect(bar).toHaveAttribute('data-menus', 'true')
+    })
+
+    it('stands left of the page on a wide screen, with the bar keeping its search but not its menus', async () => {
+      window.TWAKE_RAIL = 'true'
+      renderRoute('/', { session: signedIn(), boardsApi: fakeBoardsApi() })
+
+      const bar = await screen.findByRole('banner')
+      const rail = screen.getByRole('navigation', { name: 'Twake apps' })
+      expect(rail).toHaveAttribute('data-current', 'project')
+      expect(rail).toHaveTextContent('space,drive,chat,mail,calendar,project')
+      expect(bar).toHaveAttribute('data-menus', 'false')
+      expect(
+        within(bar).getByRole('combobox', { name: 'Search' })
+      ).toBeInTheDocument()
+    })
+
+    it('leaves a phone screen as it is', async () => {
+      window.TWAKE_RAIL = 'true'
+      phoneScreen()
+      renderRoute('/', { session: signedIn(), boardsApi: fakeBoardsApi() })
+
+      const bar = await screen.findByRole('banner')
+      expect(screen.queryByRole('navigation', { name: 'Twake apps' })).toBe(
+        null
+      )
+      expect(bar).toHaveAttribute('data-menus', 'true')
+    })
+
+    it('needs the platform, which the SSO may not name', async () => {
+      window.TWAKE_RAIL = 'true'
+      renderRoute('/', { session: fakeSession(), boardsApi: fakeBoardsApi() })
+
+      await screen.findByRole('banner')
+      expect(screen.queryByRole('navigation', { name: 'Twake apps' })).toBe(
+        null
+      )
+    })
   })
 
   it.each(['/', '/boards/board-1'])(
