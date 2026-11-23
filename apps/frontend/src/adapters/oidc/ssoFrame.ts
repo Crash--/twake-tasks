@@ -1,4 +1,8 @@
-import { setTokenSet, type AuthConfig } from '@linagora/twake-oidc'
+import {
+  setTokenSet,
+  waitForActivation,
+  type AuthConfig
+} from '@linagora/twake-oidc'
 import * as client from 'openid-client'
 
 import { userOf } from '@/adapters/oidc/user'
@@ -97,6 +101,9 @@ export async function signInAt(
 }
 
 export async function signInSilently(config: AuthConfig): Promise<User> {
+  // Chrome holds back the frames of other origins in a prerendered page: the
+  // timeout must not run before the page is shown.
+  await waitForActivation()
   const frame = document.createElement('iframe')
   frame.name = SILENT_NAME
   frame.hidden = true

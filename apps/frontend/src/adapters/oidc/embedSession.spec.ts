@@ -14,6 +14,7 @@ vi.mock('@linagora/twake-oidc', () => ({
   addAuthorization: vi.fn(),
   configureAuth: vi.fn(),
   setTokenSet: vi.fn(),
+  waitForActivation: vi.fn(() => Promise.resolve()),
   logOut: vi.fn(),
   onSessionEndedElsewhere: vi.fn()
 }))
