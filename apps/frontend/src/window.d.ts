@@ -16,6 +16,8 @@ declare global {
     DRIVE_PICKER_ENABLED?: string
     /** "true" shows the navigation rail of the Twake apps on wide screens. */
     TWAKE_RAIL?: string
+    /** Registry slugs of the apps the rail prerenders on hover, comma separated. */
+    TWAKE_RAIL_PRERENDER?: string
     /** The backend's SEARCH_MIN_LENGTH. */
     SEARCH_MIN_LENGTH?: string
   }

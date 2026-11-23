@@ -24,6 +24,14 @@ export function railEnabled(): boolean {
   return window.TWAKE_RAIL === 'true'
 }
 
+/** The apps the rail prerenders on hover: TWAKE_RAIL_PRERENDER, comma separated. */
+export function railPrerender(): string[] {
+  return (window.TWAKE_RAIL_PRERENDER ?? '')
+    .split(',')
+    .map(slug => slug.trim())
+    .filter(Boolean)
+}
+
 /** The navigation between the apps, in place of the menus of the top bar. */
 export function PlatformRail({ sdk }: { sdk: Sdk }): ReactElement {
   const { signOut } = useSession()
@@ -32,6 +40,7 @@ export function PlatformRail({ sdk }: { sdk: Sdk }): ReactElement {
       <TwakeRail
         current={SLUG}
         apps={RAIL_APPS}
+        prerender={railPrerender()}
         onLogOut={() => void signOut()}
       />
     </SdkProvider>
